@@ -1,0 +1,31 @@
+name: nmp-multi-publish
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "bin/**"
+      - "src/**"
+      - "README.md"
+      - "package.json"
+      - ".github/workflows/nmp-multi-publish.yml"
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+jobs:
+  nmp-multi-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - run: |
+          npm i
+          npm i -g @tltdh61/dotenvrtdb
+          npm i -g @o861runners/nmp
+      - name: nmp-multi-publish
+        env:
+          DOTENVRTDB_URL: ${{ secrets.DOTENVRTDB_URL }}
+        run: |
+          dotenvrtdb -eUrl "$DOTENVRTDB_URL" -- nmp publish

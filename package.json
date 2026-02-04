@@ -1,0 +1,44 @@
+{
+  "name": "runner-cloudflared-tunnel",
+  "version": "1.0.0",
+  "description": "Create and manage Cloudflare tunnels for GitHub Actions and Azure Pipeline runners",
+  "main": "src/index.js",
+  "bin": {
+    "cloudflared-tunnel-start": "bin/cloudflared-tunnel-start.js"
+  },
+  "scripts": {
+    "start": "node bin/cloudflared-tunnel-start.js",
+    "version:bump": "node scripts/version-bump.js",
+    "build": "node scripts/build.js",
+    "publish:npm": "node scripts/publish.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "cloudflare",
+    "tunnel",
+    "cloudflared",
+    "github-actions",
+    "azure-pipelines",
+    "ci-cd",
+    "devops"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "cross-spawn": "^7.0.3"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}

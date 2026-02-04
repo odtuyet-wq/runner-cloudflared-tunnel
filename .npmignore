@@ -1,0 +1,40 @@
+# Main
+.env
+.env.*
+.npm-multi-publish-tmp
+push-env*
+pull-env*
+
+# Development
+.env
+.env.*
+*.log
+
+# Runtime data
+.runner-data/
+
+# Tests
+tests/
+*.test.js
+*.spec.js
+
+# Development files
+scripts/
+.github/
+.vscode/
+.idea/
+
+# Documentation source
+docs/
+
+# Git
+.git/
+.gitignore
+
+# CI
+.github/
+azure-pipelines.yml
+
+# OS
+.DS_Store
+Thumbs.db

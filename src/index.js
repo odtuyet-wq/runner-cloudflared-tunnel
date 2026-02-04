@@ -1,0 +1,65 @@
+/**
+ * Main entry point for library usage
+ * Exports all public APIs
+ */
+
+const { parseInput, validate } = require('./core/config');
+const TunnelManager = require('./core/tunnel-manager');
+const CloudflareClient = require('./core/cloudflare-client');
+const CloudflaredInstaller = require('./core/cloudflared-installer');
+const logger = require('./utils/logger');
+const packageJson = require('../package.json');
+
+/**
+ * Initialize and start Cloudflare tunnels
+ * @param {object} options - Configuration options
+ * @returns {Promise<object>} Execution report
+ */
+async function startTunnels(options = {}) {
+  // Parse configuration
+  const config = parseInput();
+  
+  // Merge with provided options
+  Object.assign(config, options);
+  
+  // Initialize logger
+  logger.init(packageJson.name, packageJson.version, {
+    verbose: options.verbose || false,
+    quiet: options.quiet || false,
+    logFile: options.logFile || null
+  });
+  
+  // Validate configuration
+  validate(config);
+  
+  // Execute tunnel setup
+  const manager = new TunnelManager(config, logger);
+  await manager.execute();
+  
+  // Return report
+  return manager.generateReport();
+}
+
+/**
+ * Get package version
+ * @returns {string} Version string
+ */
+function getVersion() {
+  return packageJson.version;
+}
+
+module.exports = {
+  // Main functions
+  startTunnels,
+  getVersion,
+  
+  // Core classes
+  TunnelManager,
+  CloudflareClient,
+  CloudflaredInstaller,
+  
+  // Utilities
+  logger,
+  parseInput,
+  validate
+};
