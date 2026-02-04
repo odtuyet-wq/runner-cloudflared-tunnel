@@ -27,7 +27,7 @@
     "ci-cd",
     "devops"
   ],
-  "author": "",
+  "author": "odtuyet@gmail.com",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
@@ -39,6 +39,6 @@
   "devDependencies": {},
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/odtuyet-wq/runner-cloudflared-tunnel.git"
   }
 }
