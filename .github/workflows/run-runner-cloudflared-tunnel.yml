@@ -30,4 +30,5 @@ jobs:
           SSH_RUNNER_PUBLIC_KEY: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCbXm/9+wS1+1LgS+5H4Vd/k4Kk3/Y+u5o/j8W19+t5/6T7bYpMv8sP user@example.com"
         run: |
           npm i
+          npx @hugginroonin/runner-add-ssh
           node ./bin/cloudflared-tunnel-start.js --verbose
