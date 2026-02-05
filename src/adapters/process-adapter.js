@@ -2,17 +2,9 @@ const spawn = require('cross-spawn');
 const os = require('os');
 const { ProcessError } = require('../utils/errors');
 
-/**
- * Process adapter for cross-platform command execution
- * Handles sudo fallback, command detection, and output capture
- */
-
 const isWindows = os.platform() === 'win32';
 const isLinux = os.platform() === 'linux';
 
-/**
- * Check if running in CI environment
- */
 function isCI() {
   return !!(
     process.env.CI ||
@@ -22,46 +14,21 @@ function isCI() {
   );
 }
 
-/**
- * Get default user for CI environments
- */
 function getCIUser() {
-  if (process.env.GITHUB_ACTIONS) {
-    return 'runner';
-  }
-  if (process.env.AZURE_PIPELINES || process.env.TF_BUILD) {
-    return 'vsts';
-  }
+  if (process.env.GITHUB_ACTIONS) return 'runner';
+  if (process.env.AZURE_PIPELINES || process.env.TF_BUILD) return 'vsts';
   return null;
 }
 
-/**
- * Check if command exists
- * @param {string} command - Command name
- * @returns {Promise<boolean>}
- */
 async function commandExists(command) {
   return new Promise((resolve) => {
     const checkCmd = isWindows ? 'where' : 'which';
     const child = spawn(checkCmd, [command], { stdio: 'ignore' });
-    
-    child.on('close', (code) => {
-      resolve(code === 0);
-    });
-    
-    child.on('error', () => {
-      resolve(false);
-    });
+    child.on('close', (code) => resolve(code === 0));
+    child.on('error', () => resolve(false));
   });
 }
 
-/**
- * Execute command with options
- * @param {string} command - Command to execute
- * @param {string[]} args - Command arguments
- * @param {object} options - Execution options
- * @returns {Promise<object>} Result with stdout, stderr, code
- */
 async function execute(command, args = [], options = {}) {
   const {
     cwd = process.cwd(),
@@ -107,10 +74,7 @@ async function execute(command, args = [], options = {}) {
     }
     
     child.on('close', (code) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      
+      if (timeoutId) clearTimeout(timeoutId);
       resolve({
         code,
         stdout: stdout.trim(),
@@ -119,31 +83,19 @@ async function execute(command, args = [], options = {}) {
     });
     
     child.on('error', (error) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      
+      if (timeoutId) clearTimeout(timeoutId);
       reject(new ProcessError(`Failed to execute ${command}: ${error.message}`, -1, ''));
     });
   });
 }
 
-/**
- * Execute command with sudo fallback (Linux only)
- * @param {string} command - Command to execute
- * @param {string[]} args - Command arguments
- * @param {object} options - Execution options
- * @returns {Promise<object>} Result with stdout, stderr, code
- */
 async function executeWithSudoFallback(command, args = [], options = {}) {
   const { logger = null } = options;
   
   if (isWindows) {
-    // No sudo on Windows, just execute
     return execute(command, args, options);
   }
   
-  // Try with sudo first
   try {
     if (logger) {
       logger.verbose(`Trying with sudo: ${command} ${args.join(' ')}`);
@@ -155,7 +107,6 @@ async function executeWithSudoFallback(command, args = [], options = {}) {
       return result;
     }
     
-    // Sudo failed, try without
     if (logger) {
       const stderrText = result.stderr ? ` stderr: ${result.stderr}` : '';
       logger.warn(`Sudo failed (code ${result.code})${stderrText}, falling back to non-sudo execution`);
@@ -166,7 +117,6 @@ async function executeWithSudoFallback(command, args = [], options = {}) {
     }
   }
   
-  // Fallback to non-sudo
   if (logger) {
     logger.verbose(`Executing without sudo: ${command} ${args.join(' ')}`);
   }
@@ -174,13 +124,6 @@ async function executeWithSudoFallback(command, args = [], options = {}) {
   return execute(command, args, options);
 }
 
-/**
- * Spawn detached process (daemon)
- * @param {string} command - Command to execute
- * @param {string[]} args - Command arguments
- * @param {object} options - Spawn options
- * @returns {object} Child process
- */
 function spawnDetached(command, args = [], options = {}) {
   const {
     cwd = process.cwd(),
@@ -203,18 +146,11 @@ function spawnDetached(command, args = [], options = {}) {
   };
   
   const child = spawn(command, args, spawnOptions);
-  
-  // Unreference so parent can exit
   child.unref();
   
   return child;
 }
 
-/**
- * Check if process is running by PID
- * @param {number} pid - Process ID
- * @returns {boolean}
- */
 function isProcessRunning(pid) {
   try {
     process.kill(pid, 0);
@@ -224,11 +160,6 @@ function isProcessRunning(pid) {
   }
 }
 
-/**
- * Kill process by PID
- * @param {number} pid - Process ID
- * @param {string} signal - Signal to send
- */
 function killProcess(pid, signal = 'SIGTERM') {
   try {
     process.kill(pid, signal);

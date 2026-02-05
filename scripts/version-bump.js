@@ -1,19 +1,10 @@
 #!/usr/bin/env node
-
-/**
- * Version bump script
- * Increments package version using Vietnam timezone
- */
-
 const fs = require('fs');
 const path = require('path');
 const { getVietnamDate } = require('../src/utils/time');
 
 const PACKAGE_JSON = path.join(__dirname, '../package.json');
 
-/**
- * Parse version string
- */
 function parseVersion(version) {
   const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
   if (!match) {
@@ -27,16 +18,10 @@ function parseVersion(version) {
   };
 }
 
-/**
- * Format version
- */
 function formatVersion({ major, minor, patch }) {
   return `${major}.${minor}.${patch}`;
 }
 
-/**
- * Bump version
- */
 function bumpVersion(type = 'patch') {
   const pkg = JSON.parse(fs.readFileSync(PACKAGE_JSON, 'utf8'));
   const current = parseVersion(pkg.version);
@@ -61,13 +46,12 @@ function bumpVersion(type = 'patch') {
   
   fs.writeFileSync(PACKAGE_JSON, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
   
-  console.log(`Version bumped: ${pkg.version} -> ${newVersionString}`);
+  console.log(`Version bumped: ${formatVersion(current)} -> ${newVersionString}`);
   console.log(`Date: ${getVietnamDate()}`);
   
   return newVersionString;
 }
 
-// Run if called directly
 if (require.main === module) {
   const type = process.argv[2] || 'patch';
   

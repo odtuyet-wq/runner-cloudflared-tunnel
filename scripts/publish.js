@@ -1,17 +1,8 @@
 #!/usr/bin/env node
-
-/**
- * Publish script
- * Publishes package to npm registry
- */
-
 const { spawn } = require('child_process');
 const { getVietnamTime } = require('../src/utils/time');
 const { build } = require('./build');
 
-/**
- * Execute command
- */
 function execute(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -31,9 +22,6 @@ function execute(command, args) {
   });
 }
 
-/**
- * Main publish function
- */
 async function publish() {
   console.log('='.repeat(60));
   console.log('Publish Script');
@@ -41,7 +29,6 @@ async function publish() {
   console.log('='.repeat(60));
   console.log('');
   
-  // Run build validation first
   console.log('Running build validation...');
   const buildResult = build();
   
@@ -72,7 +59,6 @@ async function publish() {
   }
 }
 
-// Run if called directly
 if (require.main === module) {
   publish().then(exitCode => {
     process.exit(exitCode);

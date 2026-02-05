@@ -4,6 +4,7 @@ const CloudflareClient = require("./cloudflare-client");
 const CloudflaredInstaller = require("./cloudflared-installer");
 const { getCredentialsDir, getConfigDir, getCloudflaredLogsDir, getPidDir, getDataServicesDir, getTmpDir, getBinDir } = require("./config");
 const { ensureDir, writeJson, writeText, readText, verifyPermissions, isWindows } = require("../adapters/fs-adapter");
+const { updateCloudflaredMetadata } = require("../adapters/metadata-adapter");
 const { spawnDetached } = require("../adapters/process-adapter");
 const { sleep } = require("../utils/time");
 const { ProcessError } = require("../utils/errors");
@@ -51,6 +52,9 @@ class TunnelManager {
 
     // Step 6: Verify tunnels are running
     await this.verifyTunnels();
+    
+    // Step 7: Update metadata for remote management
+    await this.updateMetadata();
   }
 
   /**
@@ -91,11 +95,11 @@ class TunnelManager {
     // Get tunnel token for fallback usage
     let token = this.config.tunnelToken;
     if (token) {
-      this.logger.info("Using tunnel token from CLOUDFLARED_TUNNEL_TOKEN");
+      this.logger.info("Using tunnel token from CLOUDFLARED_TUNNEL_TOKEN (masked in logs)");
     } else {
       this.logger.info("Fetching tunnel token from Cloudflare API...");
       token = await this.client.getTunnelToken(tunnelInfo.id);
-      this.logger.success("Tunnel token retrieved");
+      this.logger.success("Tunnel token retrieved (will be masked in logs)");
     }
 
     // Create credentials file
@@ -318,7 +322,11 @@ class TunnelManager {
 
     const cloudflaredPath = await this.installer.getCloudflaredPath();
 
+    const token = this.tunnelData?.token;
     this.logger.info(`Starting cloudflared with config: ${configPath}`);
+    if (token) {
+      this.logger.info("Passing tunnel token to cloudflared run command (token masked in logs).");
+    }
 
     // Ensure log file exists
     ensureDir(path.dirname(logPath));
@@ -329,7 +337,12 @@ class TunnelManager {
     let child;
     try {
       // Start cloudflared as detached process
-      child = spawnDetached(cloudflaredPath, ["tunnel", "--config", configPath, "run"], {
+      const args = ["tunnel", "--config", configPath, "run"];
+      if (token) {
+        args.push("--token", token);
+      }
+
+      child = spawnDetached(cloudflaredPath, args, {
         cwd: this.config.cwd,
         stdout: logFd,
         stderr: logFd,
@@ -342,6 +355,9 @@ class TunnelManager {
 
     // Save PID
     writeText(pidPath, child.pid.toString(), 0o644);
+    
+    // Store PID for metadata
+    this.cloudflaredPid = child.pid;
 
     this.logger.success(`Cloudflared started with PID: ${child.pid}`);
     this.logger.info(`Logs: ${logPath}`);
@@ -360,10 +376,15 @@ class TunnelManager {
 
     const logPath = path.join(getCloudflaredLogsDir(this.config.cwd), "cloudflared.log");
     const pidPath = path.join(getPidDir(this.config.cwd), "cloudflared.pid");
+    const tunnelId = this.tunnelData?.tunnelInfo?.id;
 
     const retries = Math.max(1, this.config.verifyRetries || 1);
     const delayMs = this.config.verifyDelay || 3000;
     let lastLogContent = '';
+
+    if (!tunnelId) {
+      this.logger.warn("Tunnel ID not available for API verification.");
+    }
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       this.logger.info(`Waiting for tunnel to initialize (attempt ${attempt}/${retries})...`);
@@ -400,6 +421,16 @@ class TunnelManager {
       this.logger.success(`Process is running (PID: ${pid})`);
       lastLogContent = readText(logPath) || "";
 
+      if (tunnelId) {
+        this.logger.info(`Checking tunnel connections via API (ID: ${tunnelId})...`);
+        const connections = await this.client.getTunnelConnections(tunnelId);
+        if (connections.length > 0) {
+          this.logger.success(`Tunnel is active via API with ${connections.length} connection(s).`);
+          break;
+        }
+        this.logger.warn("No active tunnel connections reported by API yet.");
+      }
+
       if (lastLogContent.includes("Registered tunnel connection")) {
         this.logger.success("Tunnel is running successfully!");
         break;
@@ -416,6 +447,52 @@ class TunnelManager {
   }
 
   /**
+   * Update metadata for remote management (SSH access)
+   * Writes to /var/tmp/runner-tailscale-sync-metadata.json
+   * @returns {Promise<void>}
+   */
+  async updateMetadata() {
+    this.logger.section("Updating Metadata for Remote Management");
+
+    try {
+      const pidPath = path.join(getPidDir(this.config.cwd), "cloudflared.pid");
+      const configPath = path.join(getConfigDir(this.config.cwd), "config.yml");
+      const logPath = path.join(getCloudflaredLogsDir(this.config.cwd), "cloudflared.log");
+      
+      const metadata = {
+        pid: this.cloudflaredPid,
+        tunnelId: this.tunnelData.tunnelInfo.id,
+        tunnelName: this.tunnelData.tunnelInfo.name,
+        services: this.tunnelData.services.map(service => ({
+          hostname: service.hostname,
+          service: this.buildServiceUrl(service),
+          protocol: this.normalizeProtocol(service.protocol) || this.inferProtocol(service)
+        })),
+        files: {
+          pidFile: pidPath,
+          configFile: configPath,
+          logFile: logPath,
+          credentialsFile: this.tunnelData.credentialsPath
+        },
+        status: "running",
+        startedAt: new Date().toISOString(),
+        cwd: this.config.cwd
+      };
+
+      updateCloudflaredMetadata(metadata);
+      
+      this.logger.success("Metadata updated at /var/tmp/runner-tailscale-sync-metadata.json");
+      this.logger.info("Remote SSH users can:");
+      this.logger.info(`  - View logs: cat ${logPath}`);
+      this.logger.info(`  - Stop tunnel: kill ${this.cloudflaredPid}`);
+      this.logger.info(`  - Check metadata: cat /var/tmp/runner-tailscale-sync-metadata.json`);
+    } catch (error) {
+      this.logger.warn(`Failed to update metadata: ${error.message}`);
+      this.logger.warn("Continuing without metadata update");
+    }
+  }
+
+  /**
    * Generate execution report
    * @returns {object} Report data
    */
@@ -425,6 +502,7 @@ class TunnelManager {
     const report = {
       success: true,
       tunnelsConfigured: 1,
+      pid: this.cloudflaredPid,
       tunnels: this.tunnelData.services.map((service) => ({
         name: service.name,
         hostname: service.hostname,
@@ -435,9 +513,11 @@ class TunnelManager {
       configFile: path.join(getConfigDir(this.config.cwd), "config.yml"),
       logFile: path.join(getCloudflaredLogsDir(this.config.cwd), "cloudflared.log"),
       pidFile: path.join(getPidDir(this.config.cwd), "cloudflared.pid"),
+      metadataFile: "/var/tmp/runner-tailscale-sync-metadata.json"
     };
 
     this.logger.info(`Tunnels configured: ${report.tunnelsConfigured}`);
+    this.logger.info(`Cloudflared PID: ${this.cloudflaredPid}`);
     report.tunnels.forEach((t) => {
       this.logger.success(`✓ ${t.name}: ${t.hostname} -> ${t.service}`);
     });

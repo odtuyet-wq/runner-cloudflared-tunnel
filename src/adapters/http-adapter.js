@@ -1,24 +1,12 @@
 const { retry } = require('../utils/retry');
 const { NetworkError, CloudflareApiError } = require('../utils/errors');
+const { maskTokensInContent } = require('../utils/logger');
 
-/**
- * HTTP adapter for Cloudflare API calls
- * Uses native Node.js fetch with timeout and retry support
- */
+const DEFAULT_TIMEOUT = 30000;
 
-const DEFAULT_TIMEOUT = 30000; // 30 seconds
-
-/**
- * Make HTTP request with timeout
- * @param {string} url - Request URL
- * @param {object} options - Fetch options
- * @param {number} timeout - Timeout in milliseconds
- * @returns {Promise<Response>}
- */
 async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
   try {
     const response = await fetch(url, {
       ...options,
@@ -35,12 +23,6 @@ async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT) {
   }
 }
 
-/**
- * Make Cloudflare API request
- * @param {string} endpoint - API endpoint
- * @param {object} options - Request options
- * @returns {Promise<object>} API response
- */
 async function cloudflareRequest(endpoint, options = {}) {
   const {
     method = 'GET',
@@ -50,7 +32,8 @@ async function cloudflareRequest(endpoint, options = {}) {
     email,
     accountId,
     timeout = DEFAULT_TIMEOUT,
-    retryOptions = {}
+    retryOptions = {},
+    logger = null
   } = options;
   
   const url = endpoint.startsWith('http') 
@@ -81,8 +64,8 @@ async function cloudflareRequest(endpoint, options = {}) {
         delay: 2000,
         ...retryOptions,
         onRetry: (error, attempt, waitTime) => {
-          if (retryOptions.logger) {
-            retryOptions.logger.warn(`API request failed (attempt ${attempt}), retrying in ${waitTime}ms...`);
+          if (logger) {
+            logger.warn(`API request failed (attempt ${attempt}), retrying in ${waitTime}ms...`);
           }
         }
       }
@@ -115,57 +98,33 @@ async function cloudflareRequest(endpoint, options = {}) {
   }
 }
 
-/**
- * GET request to Cloudflare API
- */
 async function get(endpoint, options = {}) {
   return cloudflareRequest(endpoint, { ...options, method: 'GET' });
 }
 
-/**
- * POST request to Cloudflare API
- */
 async function post(endpoint, body, options = {}) {
   return cloudflareRequest(endpoint, { ...options, method: 'POST', body });
 }
 
-/**
- * PUT request to Cloudflare API
- */
 async function put(endpoint, body, options = {}) {
   return cloudflareRequest(endpoint, { ...options, method: 'PUT', body });
 }
 
-/**
- * PATCH request to Cloudflare API
- */
 async function patch(endpoint, body, options = {}) {
   return cloudflareRequest(endpoint, { ...options, method: 'PATCH', body });
 }
 
-/**
- * DELETE request to Cloudflare API
- */
 async function del(endpoint, options = {}) {
   return cloudflareRequest(endpoint, { ...options, method: 'DELETE' });
 }
 
-/**
- * Download file from URL
- * @param {string} url - File URL
- * @param {string} destPath - Destination path
- * @returns {Promise<void>}
- */
 async function downloadFile(url, destPath, options = {}) {
   const { timeout = 60000 } = options;
-  
   try {
     const response = await fetchWithTimeout(url, {}, timeout);
-    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
     const fs = require('fs');
     const buffer = await response.arrayBuffer();
     fs.writeFileSync(destPath, Buffer.from(buffer));

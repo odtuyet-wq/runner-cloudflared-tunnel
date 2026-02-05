@@ -1,24 +1,12 @@
 #!/usr/bin/env node
-
-/**
- * Build script
- * Validates package structure and dependencies
- */
-
 const fs = require('fs');
 const path = require('path');
 const { getVietnamTime } = require('../src/utils/time');
 
-/**
- * Check if file exists
- */
 function fileExists(filePath) {
   return fs.existsSync(filePath);
 }
 
-/**
- * Validate package structure
- */
 function validatePackageStructure() {
   console.log('Validating package structure...');
   
@@ -35,6 +23,7 @@ function validatePackageStructure() {
     'src/adapters/fs-adapter.js',
     'src/adapters/http-adapter.js',
     'src/adapters/process-adapter.js',
+    'src/adapters/metadata-adapter.js',
     'src/utils/logger.js',
     'src/utils/time.js',
     'src/utils/errors.js',
@@ -60,9 +49,6 @@ function validatePackageStructure() {
   return true;
 }
 
-/**
- * Validate package.json
- */
 function validatePackageJson() {
   console.log('Validating package.json...');
   
@@ -84,9 +70,6 @@ function validatePackageJson() {
   return true;
 }
 
-/**
- * Check dependencies
- */
 function checkDependencies() {
   console.log('Checking dependencies...');
   
@@ -96,7 +79,6 @@ function checkDependencies() {
   const deps = Object.keys(pkg.dependencies || {});
   console.log(`  Dependencies: ${deps.join(', ')}`);
   
-  // Check if node_modules exists
   const nodeModulesPath = path.join(__dirname, '../node_modules');
   if (!fileExists(nodeModulesPath)) {
     console.warn('⚠ node_modules not found. Run: npm install');
@@ -107,9 +89,6 @@ function checkDependencies() {
   return true;
 }
 
-/**
- * Main build function
- */
 function build() {
   console.log('='.repeat(60));
   console.log('Build Script');
@@ -144,7 +123,6 @@ function build() {
   }
 }
 
-// Run if called directly
 if (require.main === module) {
   const exitCode = build();
   process.exit(exitCode);

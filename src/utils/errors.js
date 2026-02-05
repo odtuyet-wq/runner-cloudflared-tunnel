@@ -1,7 +1,3 @@
-/**
- * Custom error classes for better error handling
- */
-
 class ValidationError extends Error {
   constructor(message) {
     super(message);
@@ -47,11 +43,6 @@ class CloudflareApiError extends Error {
   }
 }
 
-/**
- * Handle error and exit with appropriate code
- * @param {Error} error - Error to handle
- * @param {object} logger - Logger instance
- */
 function handleError(error, logger) {
   if (error instanceof ValidationError) {
     logger.error('Validation Error: ' + error.message);

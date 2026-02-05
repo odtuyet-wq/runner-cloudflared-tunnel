@@ -2,8 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.0.1] - 2026-02-04
+
+### Added
+- **Metadata Integration**: Tunnel information now written to `/var/tmp/runner-tailscale-sync-metadata.json`
+  - Includes PID, tunnel ID, service mappings, and file paths
+  - Enables remote SSH management of tunnels
+- **Token Masking**: All tunnel tokens and secrets are now masked in logs
+  - Protects sensitive data in console output
+  - Protects sensitive data in log files
+  - Automatic detection and masking of base64 tokens and API keys
+- **Remote Management Commands**: SSH users can now:
+  - View tunnel metadata: `cat /var/tmp/runner-tailscale-sync-metadata.json`
+  - Check tunnel logs without knowing exact paths
+  - Stop tunnel process: `kill <pid>` from metadata
+
+### Changed
+- Logger enhanced with `maskTokensInContent()` function
+- HTTP adapter now masks tokens in verbose API logs
+- Tunnel manager reports PID in execution summary
+- Updated documentation with remote management examples
+
+### Fixed
+- Token exposure in verbose logs eliminated
+- Improved error messages for missing metadata write permissions
 
 ## [1.0.0] - 2026-02-04
 
@@ -83,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned Features
-- Tunnel status monitoring
+- Tunnel status monitoring dashboard
 - Automatic tunnel restart on failure
 - Metrics and health checks
 - Support for additional tunnel protocols

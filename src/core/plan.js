@@ -1,8 +1,3 @@
-/**
- * Plan step for tunnel setup
- * Builds a single-tunnel plan with multiple services.
- */
-
 function plan(config, logger) {
   const tunnelName = config.tunnels[0]?.name || '';
   const services = config.tunnels.map((tunnel) => ({

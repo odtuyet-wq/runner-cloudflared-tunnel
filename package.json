@@ -1,6 +1,6 @@
 {
   "name": "runner-cloudflared-tunnel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Create and manage Cloudflare tunnels for GitHub Actions and Azure Pipeline runners",
   "main": "src/index.js",
   "bin": {
